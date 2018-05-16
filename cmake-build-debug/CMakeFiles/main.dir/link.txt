@@ -1,0 +1,1 @@
+/usr/bin/cc -g   CMakeFiles/main.dir/main.c.o CMakeFiles/main.dir/interface.c.o CMakeFiles/main.dir/cpu.c.o  -o main term/libmyTerm.a bigChars/libmyBigChars.a simpleComputer/libmySimpleComputer.a readKey/libmyReadKey.a 

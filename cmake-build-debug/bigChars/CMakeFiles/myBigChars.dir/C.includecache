@@ -1,0 +1,22 @@
+#IncludeRegexLine: ^[ 	]*[#%][ 	]*(include|import)[ 	]*[<"]([^">]+)([">])
+
+#IncludeRegexScan: ^.*$
+
+#IncludeRegexComplain: ^$
+
+#IncludeRegexTransform: 
+
+../bigChars/../term/myTerm.h
+
+/home/denis/CLionProjects/Evm/bigChars/myBigChars.c
+myBigChars.h
+/home/denis/CLionProjects/Evm/bigChars/myBigChars.h
+stdio.h
+-
+unistd.h
+-
+
+/home/denis/CLionProjects/Evm/bigChars/myBigChars.h
+myTerm.h
+-
+

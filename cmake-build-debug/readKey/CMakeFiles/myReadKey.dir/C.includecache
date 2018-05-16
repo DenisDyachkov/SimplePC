@@ -1,0 +1,20 @@
+#IncludeRegexLine: ^[ 	]*[#%][ 	]*(include|import)[ 	]*[<"]([^">]+)([">])
+
+#IncludeRegexScan: ^.*$
+
+#IncludeRegexComplain: ^$
+
+#IncludeRegexTransform: 
+
+/home/denis/CLionProjects/Evm/readKey/myReadKey.c
+termios.h
+-
+unistd.h
+-
+string.h
+-
+myReadKey.h
+/home/denis/CLionProjects/Evm/readKey/myReadKey.h
+
+/home/denis/CLionProjects/Evm/readKey/myReadKey.h
+

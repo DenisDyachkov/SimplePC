@@ -1,0 +1,2 @@
+/usr/bin/ar qc libmyTranslate.a  CMakeFiles/myTranslate.dir/asm.c.o CMakeFiles/myTranslate.dir/basic.c.o
+/usr/bin/ranlib libmyTranslate.a
