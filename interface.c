@@ -4,8 +4,7 @@
 #include <stdio.h>
 #include  "interface.h"
 
-void printKeys();
-
+int select_cell;
 int big[][2] = {
         {0xC3C3C3FF, 0xFFC3C3C3}, //0
         {0xC0F0E0C0, 0xC0C0C0C0}, //1
@@ -17,38 +16,62 @@ int big[][2] = {
         {0x3060C0FF, 0x03060C18}, //7
         {0x7EC3C37E, 0x7EC3C3C3}, //8
         {0xFFC3C3FF, 0x0E3160C0}, //9
+        {0x6666663C, 0x66667E66}, //A
+        {0x7FC3C37F, 0x7FC3C3C3}, //B
+        {0x0303C37E, 0x7EC30303}, //C
+        {0xC3C3C37F, 0x7FC3C3C3}, //D
+        {0x1F03037F, 0x7F030303}, //E
+        {0x1F03037F, 0x03030303}, //F
         {0xFF3C3C00, 0x003C3CFF}  //+
 };
 
-static eColors tColor, bColor;
+struct stInstallColors {
+    eColors text_color;
+    eColors back_color;
+    eColors select_color;
+} colors;
+
+void interface_load(eColors textColor, eColors background, eColors selectColor) {
+    mt_setfgcolor(textColor);
+    mt_setbgcolor(background);
+    colors.text_color = textColor;
+    colors.back_color = background;
+    colors.select_color = selectColor;
+    select_cell = 0;
+    interface_print();
+}
 
 void printBox(const char* title, int x, int y, int width, int height) {
     bc_box(x, y, height, width);
     mt_gotoXY(x, y + width / 2 - strlen(title) / 2);
-    printf(title);
+    puts(title);
 }
 
-void interface_load(eColors textColor, eColors background) {
-    mt_setfgcolor(textColor);
-    mt_setbgcolor(background);
-    mt_clrscr();
+void printCell(int plus, int d) {
+    bc_box(13, 1, 10, 47);
+    int digit;
+    if (plus)
+        bc_printbigchar(big[16], 14, 2, colors.text_color, colors.back_color);
+    for (digit = 3; digit >= 0; --digit)
+        bc_printbigchar(big[(d >> (digit * 4)) & 0xF], 14, 11 + (3 - digit) * 9, colors.text_color, colors.back_color);
+}
 
-    tColor = textColor;
-    bColor= background;
-
-    printRam();
-    printBox("Memory", 1, 1, 61, 12);
-    printAccum();
-    printBox("Accumulator", 1, 63, 20, 3);
-    printCounter();
-    printBox("instructionCounter", 4, 63, 20, 3);
-    printOper();
+void printOperation(int value) {
+    int command = 0, operand = 0;
+    mt_gotoXY(8, 69);
+    printf("%c%02X : %02X",
+        sc_commandDecode(value, &command, &operand) == 0 ? '+' : ' ',
+        command, operand);
     printBox("Operation", 7, 63, 20, 3);
-    printFlags();
-    printBox("Flags", 10, 63, 20, 3);
-    printKeys();
-    printCell();
-    printIO();
+}
+
+void printSelectCell(int is_cmd, int value) {
+    mt_setbgcolor(colors.select_color);
+    printf("%c%04X", (is_cmd ? '+' : ' '), value & 0x3FFF);
+    mt_setbgcolor(colors.back_color);
+    printf(" ");
+    printOperation(value);
+    printCell(is_cmd, value & 0x3FFF);
 }
 
 void printRam() {
@@ -57,70 +80,81 @@ void printRam() {
         mt_gotoXY(2 + row / 10, 2);
         for (column = 0; column < 10; ++column) {
             sc_memoryGet(row + column, &value);
-            printf("%c%04X ", (sc_isCommand(value) ? '+' : ' '), value & 0x3FFF);
+            if ((row + column) == select_cell) {
+                printSelectCell(sc_isCommand(value), value);
+                mt_gotoXY(2 + row / 10, 2 + (column + 1) * 6);
+                continue;
+            }
+            if (sc_isCommand(value)) {
+                int cmd, operand;
+                printf("+%02X%02X ", (sc_isCommand(value) ? '+' : ' '), value & 0x3FFF);
+            }
+            else
+                printf(" %04X ", value & 0x3FFF);
         }
     }
+    printBox("Memory", 1, 1, 61, 12);
 }
 
 void printAccum() {
     mt_gotoXY(2, 71);
     printf("%d", accumulator);
+    printBox("Accumulator", 1, 63, 20, 3);
 }
 
 void printCounter() {
     mt_gotoXY(5, 71);
     printf("%d", instructionCounter);
-}
-
-void printOper() {
-    //TODO: print value
+    printBox("instructionCounter", 4, 63, 20, 3);
 }
 
 void printFlags() {
-    char flags[13] = { 0 };
-    int flagStatus = 0;
-    if (!sc_regGet(FLAG_IGNORE_CLOCK, &flagStatus) && flagStatus)
-        strcat(flags, "Т");
-    if (!sc_regGet(FLAG_INVALID_COMMAND, &flagStatus) && flagStatus)
-        strcat(flags, " Е");
-    if (!sc_regGet(FLAG_OUT_RANGE, &flagStatus) && flagStatus)
-        strcat(flags, " М");
-    if (!sc_regGet(FLAG_OVERFLOW, &flagStatus) && flagStatus)
-        strcat(flags, " П");
-    if (!sc_regGet(FLAG_DIV_ZERO, &flagStatus) && flagStatus)
-        strcat(flags, " 0");
-    mt_gotoXY(11, 74 - strlen(flags) / 2);
-    printf(flags);
+    char flags[10];
+    int flagStatus[FLAGS_END] = { 0 }, flag;
+    for (flag = 0; flag < FLAGS_END; ++flag)
+        sc_regGet(flag, flagStatus + flag);
+
+    sprintf(flags, "%c %c %c %c %c",
+            flagStatus[0] ? 'M' : '-',
+            flagStatus[1] ? 'E' : '-',
+            flagStatus[2] ? 'F' : '-',
+            flagStatus[3] ? '0' : '-',
+            flagStatus[4] ? 'T' : '-');
+    mt_gotoXY(11, 69);
+    puts(flags);
+    printBox("Flags", 10, 63, 20, 3);
 }
 
 void printKeys() {
+    static const char *text[] = {
+        "l  - load",
+        "s  - save",
+        "r  - run",
+        "t  - step",
+        "i  - reset",
+        "F5 - accumulator",
+        "F6 - instructionCounter"
+    };
+    int line = 14;
     printBox("Keys", 13, 48, 35, 10);
-    mt_gotoXY(14, 49);
-    printf("l  - load");
-    mt_gotoXY(15, 49);
-    printf("s  - save");
-    mt_gotoXY(16, 49);
-    printf("r  - run");
-    mt_gotoXY(17, 49);
-    printf("t  - step");
-    mt_gotoXY(18, 49);
-    printf("i  - reset");
-    mt_gotoXY(19, 49);
-    printf("F5 - accumulator");
-    mt_gotoXY(20, 49);
-    printf("F6 - instructionCounter");
-}
-
-void printCell() {
-    bc_box(13, 1, 10, 47);
-    int row;
-    for (row = 0; row < 5; ++row) {
-        bc_printbigchar(big[row], 14, 2 + row * 9, tColor, bColor);
+    for (; line < 21; ++line) {
+        mt_gotoXY(line, 49);
+        puts(text[line - 14]);
     }
 }
 
 void printIO() {
     mt_gotoXY(23, 1);
     printf("Input\\Output:\n");
-    printf("log data\nlog data\n");
+}
+
+void interface_print() {
+    mt_clrscr();
+    printRam();
+    printAccum();
+    printCounter();
+    printFlags();
+    printKeys();
+    printIO();
+    fflush(stdout);
 }
