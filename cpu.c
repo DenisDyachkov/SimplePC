@@ -21,7 +21,7 @@ enum eCmdLIST {
     JNP = 0x59
 };
 
-typedef int(instr_callback)(int);
+typedef int(*instr_callback)(int);
 
 struct stInstructionInfo {
     const char* name;
