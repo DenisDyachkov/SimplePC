@@ -68,7 +68,7 @@ struct stInstructionInfo* instruct_search(int code) {
         int m = (r - l) / 2 + l;
         if (cmds[m].code == code)
             return cmds + m;
-        else if (cmds[m].code < code)
+        else if (cmds[m].code > code)
             r = m;
         else
             l = m + 1;
@@ -103,7 +103,7 @@ int ALU(int code, int operand) {
 
 int CU() {
     int data, code, addr;
-    if (sc_memoryGet(instructionCounter, &data) ||
+    if (sc_memoryGet(registers.instruction_counter, &data) ||
         sc_commandDecode(data, &code, &addr)) {
         sc_regSet(FLAG_IGNORE_CLOCK, 1);
         return -1;
@@ -119,7 +119,7 @@ int CU() {
         return -1;
     }
 
-    ++instructionCounter;
+    ++registers.instruction_counter;
     if (is_cmd_arithmetic(code)) {
         if (ALU(code, addr)) {
             sc_regSet(FLAG_IGNORE_CLOCK, 1);
@@ -151,26 +151,26 @@ int __write(int operator) {
 }
 
 int __load(int operator) {
-    sc_memoryGet(operator, &accumulator);
+    sc_memoryGet(operator, (int*)&registers);//accumulator (0 offset)
     return 0;
 }
 
 int __store(int operator) {
-    sc_memorySet(operator, accumulator);
+    sc_memorySet(operator, registers.accumulator);
     return 0;
 }
 
 void accum_overflow_fix() {
-    if (accumulator & (~0x3FFF)) {
+    if (registers.accumulator & (~0x3FFF)) {
         sc_regSet(FLAG_OVERFLOW, 1);
-        accumulator &= 0x3FFF;
+        registers.accumulator &= 0x3FFF;
     }
 }
 
 int __add(int operator) {
     int right;
     sc_memoryGet(operator, &right);
-    accumulator += right;
+    registers.accumulator += right;
     accum_overflow_fix();
     return 0;
 }
@@ -178,7 +178,7 @@ int __add(int operator) {
 int __sub(int operator) {
     int right;
     sc_memoryGet(operator, &right);
-    accumulator -= right;
+    registers.accumulator -= right;
     accum_overflow_fix();
     return 0;
 }
@@ -190,32 +190,32 @@ int __div(int operator) {
         sc_regSet(FLAG_DIV_ZERO, 1);
         return -1;
     }
-    accumulator /= right;
+    registers.accumulator /= right;
     return 0;
 }
 
 int __mul(int operator) {
     int right;
     sc_memoryGet(operator, &right);
-    accumulator *= right;
+    registers.accumulator *= right;
     accum_overflow_fix();
     return 0;
 }
 
 int __jmp(int operator) {
-    instructionCounter = operator;
+    registers.instruction_counter = operator;
     return 0;
 }
 
 int __jne(int operator) {
-    if (accumulator < 0)//TODO: старший бит (15) = 1 -> отрицательное
-        instructionCounter = operator;
+    if (registers.accumulator < 0)//TODO: старший бит (15) = 1 -> отрицательное
+        registers.instruction_counter = operator;
     return 0;
 }
 
 int __jz(int operator) {
-    if (accumulator == 0)
-        instructionCounter = operator;
+    if (registers.accumulator == 0)
+        registers.instruction_counter = operator;
     return 0;
 }
 
@@ -227,17 +227,17 @@ int __halt(int operator) {
 int __jnc(int operator) {
     int of, instruction, cmd, addr;
     sc_regGet(FLAG_OVERFLOW, &of);
-    sc_memoryGet(instructionCounter - 1, &instruction);
+    sc_memoryGet(registers.instruction_counter - 1, &instruction);
     sc_commandDecode(instruction, &cmd, &addr);
     if (cmd == ADD && of)
-        instructionCounter = operator;
-    //if (accumulator & (~0x3FFF))
-    //    instructionCounter = operator;
+        registers.instruction_counter = operator;
+    //if (registers.accumulator & (~0x3FFF))
+    //    registers.instruction_counter = operator;
     return 0;
 }
 
 int __jnp(int operator) {
-    if (accumulator & 1)
-        instructionCounter = operator;
+    if (registers.accumulator & 1)
+        registers.instruction_counter = operator;
     return 0;
 }
