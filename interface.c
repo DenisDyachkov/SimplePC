@@ -66,15 +66,21 @@ void printCell(int plus, int d) {
 void printOperation(int value) {
     int command = 0, operand = 0;
     mt_gotoXY(8, 69);
-    printf("%c%02X : %02X",
-        sc_commandDecode(value, &command, &operand) == 0 ? '+' : ' ',
-        command, operand);
+    sc_commandDecode(value, &command, &operand);
+    printf("%c%02X : %02X", command != 0 ? '+' : ' ', command, operand);
     printBox("Operation", 7, 63, 20, 3);
 }
 
 void printSelectCell(int is_cmd, int value) {
     mt_setbgcolor(colors.select_color);
-    printf("%c%04X", (is_cmd ? '+' : ' '), value & 0x3FFF);
+    if (is_cmd) {
+        int cmd, operand;
+        sc_commandDecode(value, &cmd, &operand);
+        printf("+%02X%02X ", cmd, operand);
+    }
+    else
+        printf(" %04X ", value & 0x3FFF);
+    //printf("%c%04X", (is_cmd ? '+' : ' '), value & 0x3FFF);
     mt_setbgcolor(colors.back_color);
     printf(" ");
     printOperation(value);//TODO: change
@@ -106,13 +112,13 @@ void printRam() {
 
 void printAccum() {
     mt_gotoXY(2, 71);
-    printf("%d", accumulator);
+    printf("%hd", registers.accumulator);
     printBox("Accumulator", 1, 63, 20, 3);
 }
 
 void printCounter() {
     mt_gotoXY(5, 71);
-    printf("%d", instructionCounter);
+    printf("%hhu", registers.instruction_counter);
     printBox("instructionCounter", 4, 63, 20, 3);
 }
 
