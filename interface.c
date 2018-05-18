@@ -2,6 +2,7 @@
 #include <mySimpleComputer.h>
 #include <string.h>
 #include <stdio.h>
+#include <fcntl.h>
 #include  "interface.h"
 
 int select_cell;
@@ -25,7 +26,7 @@ int big[][2] = {
         {0xFF3C3C00, 0x003C3CFF}  //+
 };
 
-struct stInstallColors {
+struct {
     eColors text_color;
     eColors back_color;
     eColors select_color;
@@ -38,6 +39,12 @@ void interface_load(eColors textColor, eColors background, eColors selectColor) 
     colors.back_color = background;
     colors.select_color = selectColor;
     select_cell = 0;
+    int count_write;
+    int tmp_chars[17 * 2];
+    if (bc_bigcharread(open("chars.font", O_RDONLY), tmp_chars, 17, &count_write))
+        bc_bigcharwrite(open("chars.font", O_WRONLY | O_CREAT, S_IRUSR | S_IWUSR), (int*)big, 17);//write default
+    else
+        memcpy(big, tmp_chars, sizeof(tmp_chars));
     interface_print();
 }
 
@@ -70,7 +77,7 @@ void printSelectCell(int is_cmd, int value) {
     printf("%c%04X", (is_cmd ? '+' : ' '), value & 0x3FFF);
     mt_setbgcolor(colors.back_color);
     printf(" ");
-    printOperation(value);
+    printOperation(value);//TODO: change
     printCell(is_cmd, value & 0x3FFF);
 }
 
@@ -87,7 +94,8 @@ void printRam() {
             }
             if (sc_isCommand(value)) {
                 int cmd, operand;
-                printf("+%02X%02X ", (sc_isCommand(value) ? '+' : ' '), value & 0x3FFF);
+                sc_commandDecode(value, &cmd, &operand);
+                printf("+%02X%02X ", cmd, operand);
             }
             else
                 printf(" %04X ", value & 0x3FFF);
@@ -116,7 +124,7 @@ void printFlags() {
 
     sprintf(flags, "%c %c %c %c %c",
             flagStatus[0] ? 'M' : '-',
-            flagStatus[1] ? 'E' : '-',
+            flagStatus[1] ? 'C' : '-',
             flagStatus[2] ? 'F' : '-',
             flagStatus[3] ? '0' : '-',
             flagStatus[4] ? 'T' : '-');
