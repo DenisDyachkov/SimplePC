@@ -1,5 +1,5 @@
-#include <myBigChars.h>
 #include <mySimpleComputer.h>
+#include <myReadKey.h>
 #include <string.h>
 #include <stdio.h>
 #include <fcntl.h>
@@ -25,12 +25,40 @@ int big[][2] = {
         {0x1F03037F, 0x03030303}, //F
         {0xFF3C3C00, 0x003C3CFF}  //+
 };
+char io_msg[1024];
 
 struct {
     eColors text_color;
     eColors back_color;
     eColors select_color;
 } colors;
+
+void log_console(const char *msg) {
+    strcat(io_msg, msg);
+    strcat(io_msg, "\n");
+}
+
+void read_console_value(int addr, int *value) {
+    printf("Enter: ");
+    rk_mytermregime(0, 0, 1, 1, 1);
+    scanf("%X", value);
+    char print[16];
+    sprintf(print, "%d<\t%0X", addr, *value);
+    log_console(print);
+}
+
+void read_console_filename(char *filename, int max) {
+    printf("Enter filename: ");
+    rk_mytermregime(0, 0, 1, 1, 1);
+    fgets(filename, max, stdin);
+    filename[strlen(filename) - 1] = 0;
+}
+
+void write_console_value(int addr, int value) {
+    char print[16];
+    sprintf(print, "%d>\t%0X", addr, value);
+    log_console(print);
+}
 
 void interface_load(eColors textColor, eColors background, eColors selectColor) {
     mt_setfgcolor(textColor);
@@ -39,6 +67,7 @@ void interface_load(eColors textColor, eColors background, eColors selectColor) 
     colors.back_color = background;
     colors.select_color = selectColor;
     select_cell = 0;
+    io_msg[0] = 0;
     int count_write;
     int tmp_chars[17 * 2];
     if (bc_bigcharread(open("chars.font", O_RDONLY), tmp_chars, 17, &count_write))
@@ -159,7 +188,8 @@ void printKeys() {
 
 void printIO() {
     mt_gotoXY(23, 1);
-    printf("Input\\Output:\n");
+    fputs("Input\\Output:\n", stdout);
+    fputs(io_msg, stdout);
 }
 
 void interface_print() {

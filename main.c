@@ -2,15 +2,33 @@
 #include <myBigChars.h>
 #include <mySimpleComputer.h>
 #include <myReadKey.h>
+#include "transale/asm.h"
 #include "interface.h"
 
 #include <signal.h>
 #include <sys/time.h>
+#include <memory.h>
 
 void create_timer(double interval);
 void signalhangle(int signal);
 
-int main() {
+int CU();
+
+int main(int argc, char **argv) {
+    if (argc > 1) {
+        if (strcmp(argv[1], "sat") == 0) {
+            if (argc != 4) {
+                printf("Error\n");
+                return 1;
+            }
+            if (asm_to_object(argv[2], argv[3]) == 0)
+                printf("Successful!\n");
+            else
+                printf("Fail!\n");
+            return 0;
+        }
+    }
+
     eKeys key_down;
     int flag;
     signal(SIGUSR1, signalhangle);
@@ -20,14 +38,12 @@ int main() {
     interface_load(WHITE, PURPLE, CYAN);
     sc_regSet(FLAG_IGNORE_CLOCK, 1);
 
-    sc_memorySet(36, 0x7FFF);
-
     while (1) {
-      //pause();
         interface_print();
         rk_readkey(&key_down);
         if (key_down == VK_RUN) {
-            create_timer(1);
+            sc_regSet(FLAG_IGNORE_CLOCK, 0);
+            create_timer(0.25);
         } else if (key_down == VK_RESET) {
             create_timer(0);
             raise(SIGUSR1);
@@ -51,6 +67,21 @@ int main() {
                     if (select_cell < 99)
                         ++select_cell;
                     break;
+                case VK_STEP:
+                    CU();
+                    break;
+                case VK_LOAD: {
+                    char filename[64];
+                    read_console_filename(filename, 63);
+                    sc_memoryLoad(filename);
+                }
+                    break;
+                case VK_SAVE: {
+                    char filename[64];
+                    read_console_filename(filename, 63);
+                    sc_memorySave(filename);
+                }
+                    break;
             }
         }
     }
@@ -63,15 +94,17 @@ void signalhangle(int signal) {
         case SIGALRM: {
             int val;
             if (!sc_regGet(FLAG_IGNORE_CLOCK, &val) && !val) {
-                ++instructionCounter;
+                CU();
                 interface_print();
             }
         }
             break;
         case SIGUSR1: {
+            sc_memoryInit();
             sc_regInit();
-            instructionCounter = 0;
-            accumulator = 0;
+            registers.instruction_counter = 0;
+            registers.accumulator = 0;
+            sc_regSet(FLAG_IGNORE_CLOCK, 1);
         }
             break;
     }

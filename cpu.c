@@ -1,4 +1,5 @@
 #include "cpu.h"
+#include "interface.h"
 #include <mySimpleComputer.h>
 #include <signal.h>
 #include <stdio.h>
@@ -127,11 +128,10 @@ int CU() {
         }
     } else
         instruct_search(code)->function(addr);
+    select_cell = registers.instruction_counter;
     return 0;
 }
 
-
-#include <myReadKey.h>
 int sign_number_from_memory(int value) {
     if (value & 0x2000)// negative
         value = -1 * (((~value) & 0x3FFF) + 1);
@@ -146,9 +146,7 @@ int sign_number_to_memory(int value) {
 
 int __read(int operator) {
     int result;
-    printf("Enter:");
-    scanf("%d", &result);//TODO: change func
-    //read_console(&result);
+    read_console_value(operator, &result);
     result = sign_number_to_memory(result);
     if (result & (~0x3FFF)) {
         sc_regSet(FLAG_OVERFLOW, 1);
@@ -161,8 +159,7 @@ int __read(int operator) {
 int __write(int operator) {
     int result;
     sc_memoryGet(operator, &result);
-    printf("%d", sign_number_from_memory(result & 0x3FFF));//TODO: change func
-    //write_console(result);
+    write_console_value(operator, sign_number_from_memory(result & 0x3FFF));
     return 0;
 }
 

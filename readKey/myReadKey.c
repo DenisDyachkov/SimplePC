@@ -1,6 +1,7 @@
 #include <termios.h>
 #include <unistd.h>
 #include <string.h>
+#include <stdio.h>
 #include "myReadKey.h"
 
 #define F5 "\E[15~"
