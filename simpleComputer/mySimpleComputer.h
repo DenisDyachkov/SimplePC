@@ -12,6 +12,12 @@ enum {
     FLAGS_END    //always at the end, shows the end of the flags
 };
 
+struct stRegisters {
+    int accumulator : 15;
+    unsigned int instruction_counter : 7;
+    unsigned int flags : 10;
+};
+
 int sc_memoryInit();
 int sc_memorySet(int address, int value);
 int sc_memoryGet(int address, int *value);
@@ -24,7 +30,6 @@ int sc_isCommand(int value);
 int sc_commandEncode(int command, int operand, int *value);
 int sc_commandDecode(int value, int *command, int *operand);
 
-extern int instructionCounter;
-extern int accumulator;
+extern struct stRegisters registers;
 
 #endif

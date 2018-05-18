@@ -3,10 +3,7 @@
 #define MAX_DIGIT 0x7FFF
 
 static int ram[RAM_SIZE];
-static int reg_flags;
-
-int instructionCounter = 0;
-int accumulator = 0;
+struct stRegisters registers;
 
 int sc_memoryInit() {
     int i;
@@ -54,16 +51,16 @@ int sc_memoryLoad(const char *filename) {
 }
 
 int sc_regInit() {
-    return (reg_flags = 0);
+    return (registers.flags = 0);
 }
 
 int sc_regSet(int reg, int value) {
     if (reg < 0 || reg >= FLAGS_END)
         return 1;
     if (value == 1)
-        reg_flags |= 1 << reg;
+        registers.flags |= 1 << reg;
     else if (value == 0)
-        reg_flags &= ~(1 << reg);
+        registers.flags &= ~(1 << reg);
     else
         return 1;
     return 0;
@@ -72,7 +69,7 @@ int sc_regSet(int reg, int value) {
 int sc_regGet(int reg, int *value) {
     if (reg < 0 || reg >= FLAGS_END)
         return 1;
-    *value = (reg_flags >> reg) & 0x1;
+    *value = (registers.flags >> reg) & 0x1;
     return 0;
 }
 
