@@ -14,8 +14,9 @@ enum {
 
 struct stRegisters {
     int accumulator : 15;
-    unsigned int instruction_counter : 7;
-    unsigned int flags : 10;
+    int padding : 17;
+    unsigned short instruction_counter : 7;
+    unsigned short flags : 10;
 };
 
 int sc_memoryInit();

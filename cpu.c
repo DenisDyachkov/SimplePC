@@ -130,38 +130,57 @@ int CU() {
     return 0;
 }
 
+
+#include <myReadKey.h>
+int sign_number_from_memory(int value) {
+    if (value & 0x2000)// negative
+        value = -1 * (((~value) & 0x3FFF) + 1);
+    return value;
+}
+
+int sign_number_to_memory(int value) {
+    if (value < 0)//(value & (~0x3FFF)) == 0x3FFF
+        value = 0x2000 | (value & 0x3FFF);
+    return value;
+}
+
 int __read(int operator) {
     int result;
+    printf("Enter:");
     scanf("%d", &result);//TODO: change func
     //read_console(&result);
+    result = sign_number_to_memory(result);
     if (result & (~0x3FFF)) {
         sc_regSet(FLAG_OVERFLOW, 1);
         result &= 0x3FFF;
     }
-    sc_memorySet(operator, result);
+    sc_memorySet(operator, result | 0x4000);
     return 0;
 }
 
 int __write(int operator) {
     int result;
     sc_memoryGet(operator, &result);
-    printf("%d", result);//TODO: change func
+    printf("%d", sign_number_from_memory(result & 0x3FFF));//TODO: change func
     //write_console(result);
     return 0;
 }
 
 int __load(int operator) {
     sc_memoryGet(operator, (int*)&registers);//accumulator (0 offset)
+    registers.accumulator = sign_number_from_memory(registers.accumulator & 0x3FFF);
     return 0;
 }
 
 int __store(int operator) {
-    sc_memorySet(operator, registers.accumulator);
+    int value = sign_number_to_memory(registers.accumulator) | 0x4000;
+    sc_memorySet(operator, value);
     return 0;
 }
 
 void accum_overflow_fix() {
-    if (registers.accumulator & (~0x3FFF)) {
+    if (registers.accumulator > 0 &&
+        registers.accumulator & (~0x3FFF)) {
         sc_regSet(FLAG_OVERFLOW, 1);
         registers.accumulator &= 0x3FFF;
     }
@@ -170,7 +189,7 @@ void accum_overflow_fix() {
 int __add(int operator) {
     int right;
     sc_memoryGet(operator, &right);
-    registers.accumulator += right;
+    registers.accumulator += sign_number_from_memory(right & 0x3FFF);
     accum_overflow_fix();
     return 0;
 }
@@ -178,7 +197,7 @@ int __add(int operator) {
 int __sub(int operator) {
     int right;
     sc_memoryGet(operator, &right);
-    registers.accumulator -= right;
+    registers.accumulator -= sign_number_from_memory(right & 0x3FFF);
     accum_overflow_fix();
     return 0;
 }
@@ -190,14 +209,14 @@ int __div(int operator) {
         sc_regSet(FLAG_DIV_ZERO, 1);
         return -1;
     }
-    registers.accumulator /= right;
+    registers.accumulator /= sign_number_from_memory(right & 0x3FFF);
     return 0;
 }
 
 int __mul(int operator) {
     int right;
     sc_memoryGet(operator, &right);
-    registers.accumulator *= right;
+    registers.accumulator *= sign_number_from_memory(right & 0x3FFF);
     accum_overflow_fix();
     return 0;
 }
@@ -220,7 +239,8 @@ int __jz(int operator) {
 }
 
 int __halt(int operator) {
-    raise(SIGUSR1);
+    sc_regSet(FLAG_IGNORE_CLOCK, 1);
+    registers.instruction_counter = 0;
     return 0;
 }
 
