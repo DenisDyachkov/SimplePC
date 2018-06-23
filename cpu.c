@@ -55,7 +55,7 @@ static struct stInstructionInfo
         {"SUB", __sub, SUB},
         {"DIV", __div, DIV},
         {"MUL", __mul, MUL},
-        {"JMP", __jmp, JMP},
+        {"JUMP", __jmp, JMP},
         {"JNEG", __jne, JNE},
         {"JZ", __jz, JZ},
         {"HALT", __halt, HALT},

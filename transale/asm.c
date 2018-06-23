@@ -2,8 +2,7 @@
 #include <mySimpleComputer.h>
 #include <stdio.h>
 #include <string.h>
-//#include <cpu.h>
-#include "../cpu.h"
+#include <cpu.h>
 
 int asm_to_object(const char* filename_asm, const char* filename_object) {
     FILE *fasm = fopen(filename_asm, "r");

@@ -92,18 +92,16 @@ void printCell(int plus, int d) {
         bc_printbigchar(big[(d >> (digit * 4)) & 0xF], 14, 11 + (3 - digit) * 9, colors.text_color, colors.back_color);
 }
 
-void printOperation(int value) {
-    int command = 0, operand = 0;
+void printOperation(int cmd, int operand) {
     mt_gotoXY(8, 69);
-    sc_commandDecode(value, &command, &operand);
-    printf("%c%02X : %02X", command != 0 ? '+' : ' ', command, operand);
+    printf("%c%02X : %02X", cmd != 0 ? '+' : ' ', cmd, operand);
     printBox("Operation", 7, 63, 20, 3);
 }
 
 void printSelectCell(int is_cmd, int value) {
     mt_setbgcolor(colors.select_color);
+    int cmd = 0, operand = 0;
     if (is_cmd) {
-        int cmd, operand;
         sc_commandDecode(value, &cmd, &operand);
         printf("+%02X%02X ", cmd, operand);
     }
@@ -112,7 +110,7 @@ void printSelectCell(int is_cmd, int value) {
     //printf("%c%04X", (is_cmd ? '+' : ' '), value & 0x3FFF);
     mt_setbgcolor(colors.back_color);
     printf(" ");
-    printOperation(value);//TODO: change
+    printOperation(cmd, operand);
     printCell(is_cmd, value & 0x3FFF);
 }
 

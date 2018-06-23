@@ -2,7 +2,8 @@
 #include <myBigChars.h>
 #include <mySimpleComputer.h>
 #include <myReadKey.h>
-#include "transale/asm.h"
+#include <asm.h>
+#include "cpu.h"
 #include "interface.h"
 
 #include <signal.h>
@@ -11,8 +12,6 @@
 
 void create_timer(double interval);
 void signalhangle(int signal);
-
-int CU();
 
 int main(int argc, char **argv) {
     if (argc > 1) {
