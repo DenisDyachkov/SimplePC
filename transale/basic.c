@@ -100,6 +100,9 @@ int basic_to_asm(const char* filename_bas, const char* filename_asm) {
 
         type_check:
         switch (type) {
+            case 0:
+                fail = 1;
+                break;
             case 1:
                 continue;
             case 2: {
@@ -239,7 +242,7 @@ int basic_to_asm(const char* filename_bas, const char* filename_asm) {
                                 address, var[id2].address,
                                 address + 1, var[id1].address,
                                 address + 2);
-                        address += 4;
+                        address += 3;
                         _goto[goto_id].goto_line = line + 1;
                         _goto[goto_id].instratuction_address = strlen(asm_code) + 29;
                         _goto[goto_id].calc = 1;
@@ -251,7 +254,7 @@ int basic_to_asm(const char* filename_bas, const char* filename_asm) {
                                 address, var[id1].address,
                                 address + 1, var[id2].address,
                                 address + 2);
-                        address += 4;
+                        address += 3;
                         _goto[goto_id].goto_line = line + 1;
                         _goto[goto_id].instratuction_address = strlen(asm_code) + 29;
                         _goto[goto_id].calc = 1;
@@ -272,7 +275,7 @@ int basic_to_asm(const char* filename_bas, const char* filename_asm) {
                         break;
                 }
                 strcat(asm_code, buffer);
-                fscanf(fbas, " %[A-Z]", buffer);
+                fscanf(fbas, " %[A-Z] ", buffer);
                 type = command_type(buffer);
                 goto type_check;
             }
@@ -393,27 +396,33 @@ int basic_to_asm(const char* filename_bas, const char* filename_asm) {
     //Запись в память начальных значений + констатнт
     //Проход по конфликтным переходам и заполнение их
 
-    int id = 0;
-    for (; id < goto_id; ++id) {
-        int lid = 0;
-        while (lid < line_id &&
-                lines[lid].line_number < _goto[id].goto_line)
-            ++lid;
-        if (lid != line_id) {
-            sprintf(asm_code + _goto[id].instratuction_address, "%02u", lines[lid].start_address);
-            asm_code[_goto[id].instratuction_address + 2] = '\n';
+    if (address + var_id > 99)
+        fail = 1;
+
+    if (fail == 0) {
+        int id = 0;
+        for (; id < goto_id; ++id) {
+            int lid = 0;
+            while (lid < line_id &&
+                   lines[lid].line_number < _goto[id].goto_line)
+                ++lid;
+            if (lid != line_id) {
+                sprintf(asm_code + _goto[id].instratuction_address, "%02u", lines[lid].start_address);
+                asm_code[_goto[id].instratuction_address + 2] = '\n';
+            }
         }
-    }
 
-    for (id = var_id - 1; id >= 0; --id) {
-        sprintf(buffer, "\n%02u = %x", var[id].address, var[id].init_value);
-        strcat(asm_code, buffer);
-    }
+        for (id = var_id - 1; id >= 0; --id) {
+            sprintf(buffer, "\n%02u = %x", var[id].address, var[id].init_value);
+            strcat(asm_code, buffer);
+        }
 
-    FILE *fasm = fopen(filename_asm, "w");
-    if (fasm != NULL) {
-        fputs(asm_code, fasm);
-        fclose(fasm);
+        FILE *fasm = fopen(filename_asm, "w");
+        if (fasm != NULL) {
+            fputs(asm_code, fasm);
+            fclose(fasm);
+        } else
+            fail = 1;
     }
 
     free(buffer);
@@ -421,5 +430,5 @@ int basic_to_asm(const char* filename_bas, const char* filename_asm) {
     free(var);
     free(lines);
     free(asm_code);
-    return fasm == NULL;
+    return fail == 1;
 }
