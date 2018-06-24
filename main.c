@@ -14,6 +14,12 @@
 void create_timer(double interval);
 void signalhangle(int signal);
 
+void read_console(int *value) {
+    printf("Enter: ");
+    rk_mytermregime(0, 0, 1, 1, 1);
+    scanf("%X", value);
+}
+
 int main(int argc, char **argv) {
     if (argc > 1) {
         if (strcmp(argv[1], "-sat") == 0) {
@@ -90,6 +96,18 @@ int main(int argc, char **argv) {
                     char filename[64];
                     read_console_filename(filename, 63);
                     sc_memorySave(filename);
+                }
+                    break;
+                case VK_F5: {
+                    int val;
+                    read_console(&val);
+                    registers.accumulator = val & 0x7FFF;
+                }
+                    break;
+                case VK_F6: {
+                    int val;
+                    read_console(&val);
+                    registers.instruction_counter = ((unsigned short)val) & 0x7F;
                 }
                     break;
             }

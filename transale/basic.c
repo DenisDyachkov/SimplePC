@@ -261,7 +261,7 @@ int basic_to_asm(const char* filename_bas, const char* filename_asm) {
                         ++goto_id;
                         break;
                     default:
-                        //Если при вычитание из 2 1го число 0 - равныhttps://vk.com/im?sel=486960163
+                        //Если при вычитание из 2 1го число 0 - равны
                         sprintf(buffer, "%02u LOAD %02u\n%02u SUB %02u\n%02u JZ %02u\n%02u JUMP 00\n",
                                 address, var[id2].address,
                                 address + 1, var[id1].address,
@@ -296,20 +296,17 @@ int basic_to_asm(const char* filename_bas, const char* filename_asm) {
                     int pos = 0, flg = 0;
 
                     for (size_t i = 0; rpn[i]; i++) {
-                        if (pos > 1 && rpn[i] < 'A') {
+                        if (pos > 1 && isalnum(rpn[i]) == 0) {
 
                             unsigned id;
-                            getVarID(id, stack[pos - 2]);
+                            char var1 = stack[pos - 2];
+                            getVarID(id, var1);
                             sprintf(buffer, "%02u LOAD %02u\n", address, var[id].address);
                             strcat(asm_code, buffer);
                             ++address;
 
-                            if (!flg) {
-                                getVarID(id, stack[pos - 1]);
-                                flg++;
-                            } else {
-                                getVarID(id, toVar);
-                            }
+                            char var2 = stack[pos - 1];
+                            getVarID(id, var2);
                             if (rpn[i] == '+')
                                 sprintf(buffer, "%02u ADD %02u\n", address, var[id].address);
                             else if (rpn[i] == '-')
@@ -321,18 +318,39 @@ int basic_to_asm(const char* filename_bas, const char* filename_asm) {
                             strcat(asm_code, buffer);
                             ++address;
 
-                            getVarID(id, toVar);
+                            id = var_id;
+                            var[id].name = tmp_var;
+                            var[id].address = 99 - id;
+                            var[id].init_value = 0;
+                            ++tmp_var;
+                            ++var_id;
+
                             sprintf(buffer, "%02u STORE %02u\n", address, var[id].address);
                             strcat(asm_code, buffer);
                             ++address;
 
                             pos--;
+                            /*if (islower(stack[pos])) {
+                                --tmp_var;
+                                --var_id;
+                            }
+                            if (islower(stack[pos - 1])) {
+                                --tmp_var;
+                                --var_id;
+                            }*/
+                            stack[pos - 1] = tmp_var - 1;
                         } else {
                             stack[pos] = rpn[i];
                             pos++;
                         }
                     }
-                    --address;
+                    sprintf(buffer, "%02u LOAD %02u\n", address, var[var_id - 1].address);
+                    strcat(asm_code, buffer);
+                    ++address;
+                    int id;
+                    getVarID(id, toVar);
+                    sprintf(buffer, "%02u STORE %02u\n", address, var[id].address);
+                    strcat(asm_code, buffer);
                 } else {
                     int id = var_id;
                     if (isdigit(rpn[0])) {
