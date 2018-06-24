@@ -3,6 +3,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <ctype.h>
+#include "rpn.h"
 
 struct stLines {
     unsigned line_number;
@@ -22,19 +23,19 @@ struct stGotoConflict {
 };
 
 int command_type(const char *cmd) {
-    if (strcmp(cmd, "REM"))
+    if (!strcmp(cmd, "REM"))
         return 1;
-    if (strcmp(cmd, "INPUT"))
+    if (!strcmp(cmd, "INPUT"))
         return 2;
-    if (strcmp(cmd, "OUTPUT"))
+    if (!strcmp(cmd, "OUTPUT"))
         return 3;
-    if (strcmp(cmd, "GOTO"))
+    if (!strcmp(cmd, "GOTO"))
         return 4;
-    if (strcmp(cmd, "IF"))
+    if (!strcmp(cmd, "IF"))
         return 5;
-    if (strcmp(cmd, "LET"))
+    if (!strcmp(cmd, "LET"))
         return 6;
-    if (strcmp(cmd, "END"))
+    if (!strcmp(cmd, "END"))
         return 7;
     return 0;
 }
@@ -45,6 +46,24 @@ unsigned variable_id(const struct stVariables *vars, unsigned max, char var) {
         if (vars[id].name == var)
             return id;
     return max;
+}
+
+#define getVarID(toID, varName) \
+if (isdigit(varName)) { \
+    toID = var_id; \
+    var[toID].name = tmp_var; \
+    var[toID].address = 99 - toID; \
+    var[toID].init_value = atoi(&varName); \
+    ++var_id; \
+    ++tmp_var; \
+} else { \
+    toID = variable_id(var, var_id, varName); \
+    if (toID == var_id) { \
+        var[toID].name = varName; \
+        var[toID].address = 99 - toID; \
+        var[toID].init_value = 0; \
+        ++var_id; \
+    } \
 }
 
 int basic_to_asm(const char* filename_bas, const char* filename_asm) {
@@ -68,7 +87,7 @@ int basic_to_asm(const char* filename_bas, const char* filename_asm) {
     //A-Z - basic variables
     //a-z - temp variables
 
-    while (end == 0 && fscanf(fbas, "%u %[A-Z]", &line, buffer) != 0) {
+    while (end == 0 && fscanf(fbas, "%u %[A-Z] ", &line, buffer) != 0) {
         if (line_id != 0 && line <= lines[line_id].line_number) {
             end = fail = 1;
             break;
@@ -118,7 +137,7 @@ int basic_to_asm(const char* filename_bas, const char* filename_asm) {
             }
                 break;
             case 4: {
-                sprintf(buffer, "%02u JMP ", address);
+                sprintf(buffer, "%02u JUMP ", address);
                 strcat(asm_code, buffer);
                 fscanf(fbas, "%u", &line);
                 if (line > lines[line_id - 1].line_number) {
@@ -127,6 +146,8 @@ int basic_to_asm(const char* filename_bas, const char* filename_asm) {
                     _goto[goto_id].calc = 0;
                     strcat(asm_code, "00\n");
                     ++goto_id;
+
+                    ++address;
                     continue;
                 }
                 int id = line_id - 1;
@@ -143,7 +164,7 @@ int basic_to_asm(const char* filename_bas, const char* filename_asm) {
             case 5: {
                 char op1[8], op2[8];
                 fscanf(fbas, "%[0-9A-Z] %1[<=>] %[0-9A-Z]", op1, buffer, op2);
-                if (isdigit(op1) && isdigit(op2)) {
+                if (isdigit(op1[0]) && isdigit(op2[0])) {
                     int result = 0;
                     switch (buffer[0]) {
                         case '<':
@@ -165,7 +186,7 @@ int basic_to_asm(const char* filename_bas, const char* filename_asm) {
 
                 //Определяем индексы переменных и регистрируем если требуется (могут быть времененные)
                 int id1 = var_id, id2 = var_id;
-                if (isdigit(op1)) {
+                if (isdigit(op1[0])) {
                     var[id1].name = tmp_var;
                     var[id1].address = 99 - var_id;
                     var[id1].init_value = atoi(op1);
@@ -179,7 +200,7 @@ int basic_to_asm(const char* filename_bas, const char* filename_asm) {
                         var[id2].init_value = 0;
                         ++var_id;
                     }
-                } else if (isdigit(op2)) {
+                } else if (isdigit(op2[0])) {
                     var[id2].name = tmp_var;
                     var[id2].address = 99 - var_id;
                     var[id2].init_value = atoi(op2);
@@ -237,7 +258,7 @@ int basic_to_asm(const char* filename_bas, const char* filename_asm) {
                         ++goto_id;
                         break;
                     default:
-                        //Если при вычитание из 2 1го число 0 - равны
+                        //Если при вычитание из 2 1го число 0 - равныhttps://vk.com/im?sel=486960163
                         sprintf(buffer, "%02u LOAD %02u\n%02u SUB %02u\n%02u JZ %02u\n%02u JUMP 00\n",
                                 address, var[id2].address,
                                 address + 1, var[id1].address,
@@ -251,13 +272,104 @@ int basic_to_asm(const char* filename_bas, const char* filename_asm) {
                         break;
                 }
                 strcat(asm_code, buffer);
-                fscanf(fbas, "%[A-Z]", buffer);
+                fscanf(fbas, " %[A-Z]", buffer);
                 type = command_type(buffer);
                 goto type_check;
             }
                 break;
             case 6: {
-                //LET
+                fscanf(fbas, "%[A-Z]", buffer);
+                if (buffer[1] != 0 || !(buffer[0] >= 'A' && buffer[0] <= 'Z')) {
+                    end = fail = 1;
+                    break;
+                }
+                char toVar = buffer[0];
+                char exp[256] = "\0";
+                char rpn[256];
+                fgets(exp, 255, fbas);
+                translate_to_rpn(rpn, exp);
+                if (strlen(rpn) > 1) {
+                    char stack[100] = "\0";
+                    int pos = 0, flg = 0;
+
+                    for (size_t i = 0; rpn[i]; i++) {
+                        if (pos > 1 && rpn[i] < 'A') {
+
+                            unsigned id;
+                            getVarID(id, stack[pos - 2]);
+                            sprintf(buffer, "%02u LOAD %02u\n", address, var[id].address);
+                            strcat(asm_code, buffer);
+                            ++address;
+
+                            if (!flg) {
+                                getVarID(id, stack[pos - 1]);
+                                flg++;
+                            } else {
+                                getVarID(id, toVar);
+                            }
+                            if (rpn[i] == '+')
+                                sprintf(buffer, "%02u ADD %02u\n", address, var[id].address);
+                            else if (rpn[i] == '-')
+                                sprintf(buffer, "%02u SUB %02u\n", address, var[id].address);
+                            else if (rpn[i] == '*')
+                                sprintf(buffer, "%02u MUL %02u\n", address, var[id].address);
+                            else if (rpn[i] == '/')
+                                sprintf(buffer, "%02u DIV %02u\n", address, var[id].address);
+                            strcat(asm_code, buffer);
+                            ++address;
+
+                            getVarID(id, toVar);
+                            sprintf(buffer, "%02u STORE %02u\n", address, var[id].address);
+                            strcat(asm_code, buffer);
+                            ++address;
+
+                            pos--;
+                        } else {
+                            stack[pos] = rpn[i];
+                            pos++;
+                        }
+                    }
+                    --address;
+                } else {
+                    int id = var_id;
+                    if (isdigit(rpn[0])) {
+                        id = var_id;
+                        ++var_id;
+                        if (variable_id(var, var_id, toVar) == var_id) {
+                            var[id].name = toVar;
+                            var[id].address = 99 - id;
+                            var[id].init_value = atoi(rpn);
+                            --address;
+                            break;
+                        } else {
+                            var[id].name = tmp_var;
+                            var[id].address = 99 - id;
+                            var[id].init_value = atoi(rpn);
+                            ++tmp_var;
+                        }
+                    } else {
+                        id = variable_id(var, var_id, rpn[0]);
+                        if (id == var_id) {
+                            var[id].name = rpn[0];
+                            var[id].address = 99 - id;
+                            var[id].init_value = 0;
+                            ++var_id;
+                        }
+                    }
+
+                    sprintf(buffer, "%02u LOAD %02u\n", address, var[id].address);
+                    strcat(asm_code, buffer);
+                    ++address;
+                    id = variable_id(var, var_id, toVar);
+                    if (id == var_id) {
+                        var[id].name = toVar;
+                        var[id].address = 99 - id;
+                        var[id].init_value = 0;
+                        ++var_id;
+                    }
+                    sprintf(buffer, "%02u STORE %02u\n", address, var[id].address);
+                    strcat(asm_code, buffer);
+                }
             }
                 break;
             case 7:
@@ -268,8 +380,11 @@ int basic_to_asm(const char* filename_bas, const char* filename_asm) {
         }
         ++address;
 
+        if (type == 6)
+            continue;
 
-        do { ignore = fgetc(fasm); }
+        int ignore;
+        do { ignore = fgetc(fbas); }
         while (ignore != '\n' && ignore != EOF);
         if (ignore == EOF)
             break;
@@ -278,10 +393,33 @@ int basic_to_asm(const char* filename_bas, const char* filename_asm) {
     //Запись в память начальных значений + констатнт
     //Проход по конфликтным переходам и заполнение их
 
+    int id = 0;
+    for (; id < goto_id; ++id) {
+        int lid = 0;
+        while (lid < line_id &&
+                lines[lid].line_number < _goto[id].goto_line)
+            ++lid;
+        if (lid != line_id) {
+            sprintf(asm_code + _goto[id].instratuction_address, "%02u", lines[lid].start_address);
+            asm_code[_goto[id].instratuction_address + 2] = '\n';
+        }
+    }
+
+    for (id = var_id - 1; id >= 0; --id) {
+        sprintf(buffer, "\n%02u = %x", var[id].address, var[id].init_value);
+        strcat(asm_code, buffer);
+    }
+
+    FILE *fasm = fopen(filename_asm, "w");
+    if (fasm != NULL) {
+        fputs(asm_code, fasm);
+        fclose(fasm);
+    }
+
     free(buffer);
     free(_goto);
     free(var);
     free(lines);
     free(asm_code);
-    return 0;
+    return fasm == NULL;
 }

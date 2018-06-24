@@ -6,5 +6,5 @@ set(CMAKE_C_STANDARD 99)
 
 include_directories("../")
 include_directories("../simpleComputer/")
-add_library(myTranslate asm.c basic.c)
+add_library(myTranslate asm.c basic.c rpn.c)
 target_include_directories(myTranslate PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
